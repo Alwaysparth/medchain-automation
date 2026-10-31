@@ -1,0 +1,137 @@
+# Render Blueprint — MedChain automation (Member 2). FREE plan, demo only.
+# Render → New → Blueprint → pick this repo. Guide: automation/deploy/RENDER.md
+#
+#   medchain-n8n        n8n (workflows, webhooks)           data in medchain-n8n-db (Postgres)
+#   medchain-ai-worker  compression, Gemini, flagging       files in MongoDB Atlas (GridFS)
+#   medchain-mock-api   MOCK of Member 1's API + Solana     state in MongoDB Atlas
+#
+# Free services sleep after ~15 min idle; open the /health URLs a minute before a demo.
+# "sync: false" values are asked for when you create the Blueprint (never commit them).
+
+envVarGroups:
+  - name: medchain-shared-secrets
+    envVars:
+      - key: INTERNAL_SERVICE_TOKEN      # n8n -> worker / API
+        generateValue: true
+      - key: N8N_WEBHOOK_TOKEN           # API -> n8n webhook
+        generateValue: true
+
+databases:
+  - name: medchain-n8n-db
+    plan: free
+    region: singapore
+    databaseName: n8n
+    user: n8n
+    ipAllowList: []                      # no public access; n8n connects over Render's private network
+
+services:
+  # ------------------------------------------------------------------ n8n
+  - type: web
+    name: medchain-n8n
+    runtime: image
+    image:
+      url: docker.n8n.io/n8nio/n8n:latest
+    plan: free
+    region: singapore
+    healthCheckPath: /healthz
+    envVars:
+      - fromGroup: medchain-shared-secrets
+      - key: PORT
+        value: "5678"
+      - key: N8N_PORT
+        value: "5678"
+      - key: N8N_ENCRYPTION_KEY          # never change after first deploy (copy it to a password manager)
+        generateValue: true
+      - key: DB_TYPE
+        value: postgresdb
+      - key: DB_POSTGRESDB_HOST
+        fromDatabase: { name: medchain-n8n-db, property: host }
+      - key: DB_POSTGRESDB_PORT
+        fromDatabase: { name: medchain-n8n-db, property: port }
+      - key: DB_POSTGRESDB_DATABASE
+        fromDatabase: { name: medchain-n8n-db, property: database }
+      - key: DB_POSTGRESDB_USER
+        fromDatabase: { name: medchain-n8n-db, property: user }
+      - key: DB_POSTGRESDB_PASSWORD
+        fromDatabase: { name: medchain-n8n-db, property: password }
+      - key: WEBHOOK_URL                 # e.g. https://medchain-n8n.onrender.com/
+        sync: false
+      - key: N8N_PROTOCOL
+        value: https
+      - key: N8N_PROXY_HOPS
+        value: "1"
+      - key: N8N_BLOCK_ENV_ACCESS_IN_NODE
+        value: "false"                   # workflows read the URLs/tokens below from env
+      - key: GENERIC_TIMEZONE
+        value: Asia/Kolkata
+      - key: N8N_DIAGNOSTICS_ENABLED
+        value: "false"
+      - key: EXECUTIONS_DATA_PRUNE       # keep the small free database small
+        value: "true"
+      - key: EXECUTIONS_DATA_MAX_AGE
+        value: "168"
+      - key: NODE_OPTIONS                # free instances have 512 MB RAM
+        value: --max-old-space-size=384
+      - key: AI_WORKER_URL               # e.g. https://medchain-ai-worker.onrender.com
+        sync: false
+      - key: MEDCHAIN_API_URL            # e.g. https://medchain-mock-api.onrender.com
+        sync: false
+      - key: SOLANA_CLIENT_URL           # e.g. https://medchain-mock-api.onrender.com/solana
+        sync: false
+
+  # ------------------------------------------------------------------ AI worker
+  - type: web
+    name: medchain-ai-worker
+    runtime: docker
+    dockerfilePath: ./automation/Dockerfile
+    dockerContext: .
+    plan: free
+    region: singapore
+    healthCheckPath: /health
+    envVars:
+      - fromGroup: medchain-shared-secrets
+      - key: PORT
+        value: "8000"
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GEMINI_MODEL
+        value: gemini-3.8-flash
+      - key: STORAGE_BACKEND
+        value: mongodb
+      - key: MONGODB_URI                 # mongodb+srv://... from MongoDB Atlas
+        sync: false
+      - key: MONGODB_DB
+        value: medchain_files
+      - key: TRACE_FILE                  # temporary on Render; Step 6 moves traces to Meko
+        value: /tmp/traces.jsonl
+
+  # ------------------------------------------------------------------ MOCK API (remove when Member 1's API is live)
+  - type: web
+    name: medchain-mock-api
+    runtime: docker
+    dockerfilePath: ./automation/Dockerfile
+    dockerContext: .
+    dockerCommand: uvicorn app:app --app-dir /app/automation/mocks/mock_api --host 0.0.0.0 --port 8100
+    plan: free
+    region: singapore
+    healthCheckPath: /health
+    envVars:
+      - fromGroup: medchain-shared-secrets
+      - key: PORT
+        value: "8100"
+      - key: AI_DIR
+        value: /app/automation/ai
+      - key: STORAGE_BACKEND
+        value: mongodb
+      - key: MONGODB_URI
+        sync: false
+      - key: MONGODB_DB
+        value: medchain_files
+      - key: MOCK_DB_BACKEND
+        value: mongodb
+      - key: DEMO_TOKEN                  # protects /demo/* on the public internet
+        generateValue: true
+      - key: N8N_UPLOAD_WEBHOOK_URL      # e.g. https://medchain-n8n.onrender.com/webhook/upload-pipeline
+        sync: false
+      - key: N8N_WEBHOOK_TIMEOUT
+        value: "90"

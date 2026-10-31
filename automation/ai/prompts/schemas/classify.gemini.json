@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "document_type": {
+      "type": "string",
+      "enum": [
+        "lab_report",
+        "prescription",
+        "bill",
+        "other"
+      ]
+    },
+    "confidence": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "reason": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "document_type",
+    "confidence",
+    "reason"
+  ],
+  "title": "Gemini output: classify"
+}

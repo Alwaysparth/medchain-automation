@@ -1,0 +1,177 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "doctor_name": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "doctor_registration_no": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "doctor_qualification": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "clinic_name": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "prescription_date": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date"
+    },
+    "complaints_as_written": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "diagnosis_as_written": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "medicines": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "name_as_written": {
+            "type": "string"
+          },
+          "form": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "tablet",
+              "capsule",
+              "syrup",
+              "injection",
+              "drops",
+              "ointment",
+              "inhaler",
+              "powder",
+              "other",
+              null
+            ]
+          },
+          "strength_as_written": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "dose_as_written": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "frequency_as_written": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "timing_as_written": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "duration_as_written": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "instructions_as_written": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confidence": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          }
+        },
+        "required": [
+          "name_as_written",
+          "form",
+          "strength_as_written",
+          "dose_as_written",
+          "frequency_as_written",
+          "timing_as_written",
+          "duration_as_written",
+          "instructions_as_written",
+          "confidence"
+        ]
+      }
+    },
+    "tests_advised": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "follow_up_as_written": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "languages_detected": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "overall_confidence": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "warnings": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "required": [
+    "doctor_name",
+    "doctor_registration_no",
+    "doctor_qualification",
+    "clinic_name",
+    "prescription_date",
+    "complaints_as_written",
+    "diagnosis_as_written",
+    "medicines",
+    "tests_advised",
+    "follow_up_as_written",
+    "languages_detected",
+    "overall_confidence",
+    "warnings"
+  ],
+  "title": "Gemini output: prescription"
+}

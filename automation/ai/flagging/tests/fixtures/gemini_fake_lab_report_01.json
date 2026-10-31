@@ -1,0 +1,224 @@
+{
+  "document_type": "lab_report",
+  "parsed": {
+    "schema_version": "1.0",
+    "entry_id": "local-c3e7034b",
+    "patient_id": "demo-patient",
+    "report_date": "2026-10-20",
+    "lab_name": "DEMO DIAGNOSTICS PVT LTD (FAKE)",
+    "referring_doctor": "Dr. A. Sharma",
+    "tests": [
+      {
+        "name": "Total Cholesterol",
+        "name_normalized": "total cholesterol",
+        "value": 245,
+        "value_text": "245",
+        "unit": "mg/dL",
+        "range_low": null,
+        "range_high": null,
+        "range_text": "< 200",
+        "range_unit": null,
+        "status": "unknown",
+        "flag_reason": null,
+        "confidence": 0.99,
+        "source": {
+          "page": 1,
+          "region": "table row 1"
+        }
+      },
+      {
+        "name": "HDL Cholesterol",
+        "name_normalized": "hdl cholesterol",
+        "value": 38,
+        "value_text": "38",
+        "unit": "mg/dL",
+        "range_low": null,
+        "range_high": null,
+        "range_text": ">= 40",
+        "range_unit": null,
+        "status": "unknown",
+        "flag_reason": null,
+        "confidence": 0.99,
+        "source": {
+          "page": 1,
+          "region": "table row 2"
+        }
+      },
+      {
+        "name": "LDL Cholesterol",
+        "name_normalized": "ldl cholesterol",
+        "value": 162,
+        "value_text": "162",
+        "unit": "mg/dL",
+        "range_low": null,
+        "range_high": null,
+        "range_text": "Up to 130",
+        "range_unit": null,
+        "status": "unknown",
+        "flag_reason": null,
+        "confidence": 0.99,
+        "source": {
+          "page": 1,
+          "region": "table row 3"
+        }
+      },
+      {
+        "name": "Triglycerides",
+        "name_normalized": "triglycerides",
+        "value": 150,
+        "value_text": "150",
+        "unit": "mg/dL",
+        "range_low": null,
+        "range_high": null,
+        "range_text": "< 150",
+        "range_unit": null,
+        "status": "unknown",
+        "flag_reason": null,
+        "confidence": 0.99,
+        "source": {
+          "page": 1,
+          "region": "table row 4"
+        }
+      },
+      {
+        "name": "Fasting Blood Sugar",
+        "name_normalized": "fasting blood glucose",
+        "value": 98,
+        "value_text": "98",
+        "unit": "mg/dL",
+        "range_low": null,
+        "range_high": null,
+        "range_text": "70 - 110",
+        "range_unit": null,
+        "status": "unknown",
+        "flag_reason": null,
+        "confidence": 0.99,
+        "source": {
+          "page": 1,
+          "region": "table row 5"
+        }
+      },
+      {
+        "name": "HbA1c",
+        "name_normalized": "hba1c",
+        "value": 6.1,
+        "value_text": "6.1",
+        "unit": "%",
+        "range_low": null,
+        "range_high": null,
+        "range_text": "4.0 - 5.6",
+        "range_unit": null,
+        "status": "unknown",
+        "flag_reason": null,
+        "confidence": 0.99,
+        "source": {
+          "page": 1,
+          "region": "table row 6"
+        }
+      },
+      {
+        "name": "Haemoglobin / हीमोग्लोबिन",
+        "name_normalized": "hemoglobin",
+        "value": 12.8,
+        "value_text": "12.8",
+        "unit": "g/dL",
+        "range_low": null,
+        "range_high": null,
+        "range_text": "M: 13 - 17  F: 12 - 15",
+        "range_unit": null,
+        "status": "unknown",
+        "flag_reason": null,
+        "confidence": 0.99,
+        "source": {
+          "page": 1,
+          "region": "table row 7"
+        }
+      },
+      {
+        "name": "TSH",
+        "name_normalized": "tsh",
+        "value": 2.45,
+        "value_text": "2.45",
+        "unit": "µIU/mL",
+        "range_low": null,
+        "range_high": null,
+        "range_text": "0.27 - 4.20",
+        "range_unit": null,
+        "status": "unknown",
+        "flag_reason": null,
+        "confidence": 0.99,
+        "source": {
+          "page": 1,
+          "region": "table row 8"
+        }
+      },
+      {
+        "name": "Platelet Count",
+        "name_normalized": "platelet count",
+        "value": 150000,
+        "value_text": "1,50,000",
+        "unit": "/cumm",
+        "range_low": null,
+        "range_high": null,
+        "range_text": "1,50,000 - 4,10,000",
+        "range_unit": null,
+        "status": "unknown",
+        "flag_reason": null,
+        "confidence": 0.99,
+        "source": {
+          "page": 1,
+          "region": "table row 9"
+        }
+      },
+      {
+        "name": "Vitamin D (25-OH)",
+        "name_normalized": "vitamin d",
+        "value": 18.2,
+        "value_text": "18.2",
+        "unit": "ng/mL",
+        "range_low": null,
+        "range_high": null,
+        "range_text": null,
+        "range_unit": null,
+        "status": "unknown",
+        "flag_reason": null,
+        "confidence": 0.99,
+        "source": {
+          "page": 1,
+          "region": "table row 10"
+        }
+      },
+      {
+        "name": "Urine Sugar",
+        "name_normalized": "urine sugar",
+        "value": null,
+        "value_text": "Negative",
+        "unit": null,
+        "range_low": null,
+        "range_high": null,
+        "range_text": null,
+        "range_unit": null,
+        "status": "unknown",
+        "flag_reason": null,
+        "confidence": 0.99,
+        "source": {
+          "page": 1,
+          "region": "table row 11"
+        }
+      }
+    ],
+    "extraction": {
+      "model": "gemini-3.8-flash",
+      "prompt_version": "extract-lab-report@1",
+      "extracted_at": "2026-10-31T18:40:15Z",
+      "overall_confidence": 0.99,
+      "languages_detected": [
+        "en",
+        "hi"
+      ],
+      "warnings": [
+        "Instruction-like text found in document and ignored."
+      ]
+    }
+  }
+}

@@ -1,0 +1,11 @@
+# MedChain AI (Member 2) — Python 3.10+
+google-genai>=1.30      # Gemini SDK (structured JSON output)
+jsonschema>=4.21        # validate Gemini output + team contracts
+pytest>=8               # tests
+Pillow>=10.3            # image -> WebP compression
+pypdfium2>=4.30         # PDF page count + thumbnail
+# pillow-heif>=0.18     # optional: accept iPhone HEIC photos
+# Step 5: ai-worker web service (Docker installs these from automation/requirements-docker.txt)
+fastapi>=0.115
+uvicorn[standard]>=0.30
+pymongo>=4.8            # only for STORAGE_BACKEND=mongodb (MongoDB Atlas GridFS)

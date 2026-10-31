@@ -1,0 +1,775 @@
+{
+  "name": "MedChain – upload pipeline",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## MedChain upload pipeline (Member 2)\nAPI sends `document.uploaded` → validate → compress + store → anchor SHA-256 on Solana → Gemini extraction → deterministic flagging → save via API → AI trace → notify.\n\nAny failing stage goes to the **error branch**: entry marked *failed* with \"Processing failed, please re-upload\".\n\nEnv used: `MEDCHAIN_API_URL`, `AI_WORKER_URL`, `SOLANA_CLIENT_URL`, `INTERNAL_SERVICE_TOKEN`, `N8N_WEBHOOK_TOKEN`.\nContract: `contracts/events.md` 1.1, 2.3, 2.4, 2.8, 3.1",
+        "height": 260,
+        "width": 520
+      },
+      "id": "86020a86-9ece-5e58-a031-3f106bb7da9e",
+      "name": "About this workflow",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        160,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "upload-pipeline",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "5aca4226-323c-5864-993d-c94e99bd6adb",
+      "name": "Webhook: document.uploaded",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        200,
+        300
+      ],
+      "webhookId": "146f6693-6474-5fbc-8730-4fbf94ca94b6"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Check the event BEFORE accepting it. Document contents are never read here.\nconst h = $json.headers || {};\nconst body = $json.body || {};\nconst d = body.data || {};\nconst f = d.file || {};\nconst errors = [];\nconst expected = $env.N8N_WEBHOOK_TOKEN;\nif (!expected || h['x-medchain-webhook-token'] !== expected) errors.push('missing or wrong X-MedChain-Webhook-Token header');\nif (body.event_type !== 'document.uploaded') errors.push('event_type must be document.uploaded');\nconst idOk = (s) => typeof s === 'string' && /^[A-Za-z0-9_-]{1,64}$/.test(s);\nif (!idOk(d.entry_id)) errors.push('data.entry_id missing or invalid');\nif (!idOk(d.patient_id)) errors.push('data.patient_id missing or invalid');\nif (!['lab_report', 'prescription', 'bill', 'unknown'].includes(d.document_type)) errors.push('data.document_type invalid');\nif (!['provider', 'patient_uploaded'].includes(d.source)) errors.push('data.source must be provider or patient_uploaded');\nif (typeof f.raw_object_key !== 'string' || !f.raw_object_key.startsWith('raw/' + d.patient_id + '/') || f.raw_object_key.includes('..'))\n  errors.push('data.file.raw_object_key must be raw/<patient_id>/...');\nif (!['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif', 'application/pdf'].includes(f.mime_type))\n  errors.push('data.file.mime_type not allowed');\nif (!(f.size_bytes > 0 && f.size_bytes <= 20 * 1024 * 1024)) errors.push('data.file.size_bytes must be 1 byte to 20 MB');\nif (d.source === 'provider' && !d.consent_grant_id) errors.push('provider uploads need consent_grant_id');\nconst sex = ((d.patient_context || {}).sex || '').toUpperCase();\nreturn { json: {\n  valid: errors.length === 0, errors,\n  event_id: body.event_id || null,\n  correlation_id: body.correlation_id || body.event_id || null,\n  entry_id: d.entry_id, patient_id: d.patient_id,\n  document_type: d.document_type, source: d.source, channel: d.channel || 'web',\n  raw_object_key: f.raw_object_key, mime_type: f.mime_type,\n  patient_sex: ['M', 'F'].includes(sex) ? sex : null,\n} };"
+      },
+      "id": "2c9dd470-3d68-5da1-a473-fdbaa3e561dd",
+      "name": "Validate event",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "da338511-98a3-56b1-a74b-2561877fe3fa",
+              "leftValue": "={{ $json.valid }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "f9235ccb-68ce-514d-b0f3-59a934a28142",
+      "name": "Valid?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        680,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ accepted: true, entry_id: $json.entry_id }) }}",
+        "options": {
+          "responseCode": 202
+        }
+      },
+      "id": "07dc2a46-9f43-5112-b0ae-19b9c7afe8bb",
+      "name": "Respond 202 Accepted",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        920,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ accepted: false, errors: $json.errors }) }}",
+        "options": {
+          "responseCode": 400
+        }
+      },
+      "id": "afeb88b7-4b43-5e03-9f4b-70f72ca0f466",
+      "name": "Respond 400 Rejected",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        920,
+        480
+      ]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ $env.MEDCHAIN_API_URL }}/internal/timeline-entries/{{ $('Validate event').item.json.entry_id }}/status",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.INTERNAL_SERVICE_TOKEN }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ processing_status: 'compressing' }) }}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "9f201bbe-a198-54c4-bb61-cce2d8c2df99",
+      "name": "Status: compressing",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1160,
+        300
+      ],
+      "onError": "continueErrorOutput",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.AI_WORKER_URL }}/pipeline/compress-store",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.INTERNAL_SERVICE_TOKEN }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ entry_id: $('Validate event').item.json.entry_id, patient_id: $('Validate event').item.json.patient_id, raw_object_key: $('Validate event').item.json.raw_object_key }) }}",
+        "options": {
+          "timeout": 120000
+        }
+      },
+      "id": "27fd46b0-32c5-5538-aa22-24e23dafa3ca",
+      "name": "Compress + store",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1400,
+        300
+      ],
+      "onError": "continueErrorOutput",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SOLANA_CLIENT_URL }}/anchor",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.INTERNAL_SERVICE_TOKEN }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ kind: 'document', hash: $('Compress + store').item.json.doc_hash, entry_id: $('Validate event').item.json.entry_id }) }}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "b860116a-c5e9-5f92-af9d-e835671572fc",
+      "name": "Anchor hash on Solana",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1640,
+        300
+      ],
+      "onError": "continueRegularOutput",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ $env.MEDCHAIN_API_URL }}/internal/timeline-entries/{{ $('Validate event').item.json.entry_id }}/status",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.INTERNAL_SERVICE_TOKEN }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ processing_status: 'extracting' }) }}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "dbbef578-3348-5aa6-9ae1-b3a357cf92b2",
+      "name": "Status: extracting",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1880,
+        300
+      ],
+      "onError": "continueErrorOutput",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.AI_WORKER_URL }}/pipeline/extract",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.INTERNAL_SERVICE_TOKEN }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ entry_id: $('Validate event').item.json.entry_id, patient_id: $('Validate event').item.json.patient_id, raw_object_key: $('Validate event').item.json.raw_object_key, document_type: $('Validate event').item.json.document_type }) }}",
+        "options": {
+          "timeout": 180000
+        }
+      },
+      "id": "92a42d68-04c0-5b06-b3a4-7fe9d6db0db0",
+      "name": "Gemini extract",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2120,
+        300
+      ],
+      "onError": "continueErrorOutput",
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.AI_WORKER_URL }}/pipeline/flag",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.INTERNAL_SERVICE_TOKEN }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ document_type: $json.document_type, parsed: $json.parsed, patient_sex: $('Validate event').item.json.patient_sex }) }}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "d2007379-4ff7-52cb-bfec-81351211c0e4",
+      "name": "Flag abnormal values",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2360,
+        300
+      ],
+      "onError": "continueErrorOutput",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Assemble the payload for PUT /internal/timeline-entries/{id}/parsed (contracts/events.md 2.4)\nconst v = $('Validate event').item.json;\nconst c = $('Compress + store').item.json;\nconst a = $('Anchor hash on Solana').item.json;   // has .error instead of .solana_tx if anchoring failed\nconst f = $json;                                   // output of 'Flag abnormal values'\nreturn { json: {\n  payload: {\n    document_type: f.document_type,\n    document_date: f.document_date,\n    file: c.file,\n    doc_hash: c.doc_hash,\n    solana_tx: a.solana_tx || null,                // null = \"verification pending\"\n    parsed: f.parsed,\n    summary_for_timeline: f.summary_for_timeline,\n    source_label: v.source === 'provider' ? 'Provider-verified' : 'Patient-uploaded, unverified',\n  },\n  flagged: f.flagged,\n  abnormal_count: f.abnormal_count,\n} };"
+      },
+      "id": "477f3ecf-5f93-5dc4-b666-84d9ac6a19d9",
+      "name": "Build result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2600,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "={{ $env.MEDCHAIN_API_URL }}/internal/timeline-entries/{{ $('Validate event').item.json.entry_id }}/parsed",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.INTERNAL_SERVICE_TOKEN }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.payload) }}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "e58cc641-ba47-53af-91a4-f7860dfab090",
+      "name": "Save parsed record",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2840,
+        300
+      ],
+      "onError": "continueErrorOutput",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.AI_WORKER_URL }}/trace",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.INTERNAL_SERVICE_TOKEN }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ entry_id: $('Validate event').item.json.entry_id, patient_id: $('Validate event').item.json.patient_id, correlation_id: $('Validate event').item.json.correlation_id, document_type: $('Build result').item.json.payload.document_type, parsed: $('Build result').item.json.payload.parsed, flagged: $('Build result').item.json.flagged, classification: $('Gemini extract').item.json.classification || null }) }}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "e5f48f39-b3e3-53e6-847c-ac0fc3d22afc",
+      "name": "Log AI trace",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3080,
+        300
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ $env.MEDCHAIN_API_URL }}/internal/timeline-entries/{{ $('Validate event').item.json.entry_id }}/status",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.INTERNAL_SERVICE_TOKEN }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ processing_status: 'completed' }) }}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "4e542d04-d2be-52ce-92c7-b2a48b44690d",
+      "name": "Status: completed",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3320,
+        300
+      ],
+      "onError": "continueRegularOutput",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.MEDCHAIN_API_URL }}/internal/notifications",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.INTERNAL_SERVICE_TOKEN }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ patient_id: $('Validate event').item.json.patient_id, channel: 'in_app', template: 'upload_completed', params: { document_type: $('Build result').item.json.payload.document_type, document_date: $('Build result').item.json.payload.document_date, flagged_count: $('Build result').item.json.abnormal_count, summary: $('Build result').item.json.payload.summary_for_timeline } }) }}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "443a8656-38dd-5650-9cb4-04f16632dbb0",
+      "name": "Notify patient",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3560,
+        300
+      ],
+      "onError": "continueRegularOutput",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Any failed stage lands here. Work out which stage and a short error code.\nconst prev = (typeof $prevNode !== 'undefined' && $prevNode.name) ? $prevNode.name : 'unknown';\nconst stage = {\n  'Status: compressing': 'compressing', 'Compress + store': 'compressing',\n  'Status: extracting': 'extracting', 'Gemini extract': 'extracting',\n  'Flag abnormal values': 'flagging', 'Save parsed record': 'saving',\n}[prev] || 'unknown';\nconst err = $json.error || $json;\nconst text = typeof err === 'string' ? err : JSON.stringify(err);\nconst m = /\"code\"\\s*:\\s*\"([A-Z_]+)\"/.exec(text) || /\\\\\"code\\\\\":\\\\\"([A-Z_]+)\\\\\"/.exec(text);\nconst v = $('Validate event').item.json;\nreturn { json: {\n  entry_id: v.entry_id, patient_id: v.patient_id, stage, failed_node: prev,\n  code: m ? m[1] : (stage === 'extracting' ? 'GEMINI_ERROR' : 'PROCESSING_ERROR'),\n  message: String((err && err.message) || text).slice(0, 500),\n} };"
+      },
+      "id": "6611d07d-5bbf-59ca-aa86-4c15c6dbddd0",
+      "name": "Prepare failure",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2120,
+        620
+      ]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ $env.MEDCHAIN_API_URL }}/internal/timeline-entries/{{ $json.entry_id }}/status",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.INTERNAL_SERVICE_TOKEN }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ processing_status: 'failed', error: { stage: $json.stage, code: $json.code, user_message: 'Processing failed, please re-upload', retries: 3, detail: $json.message } }) }}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "c8bb0eef-66d0-5ff9-b391-a3ee4a85f046",
+      "name": "Status: failed",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2360,
+        620
+      ],
+      "onError": "stopWorkflow",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.MEDCHAIN_API_URL }}/internal/notifications",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.INTERNAL_SERVICE_TOKEN }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ patient_id: $('Prepare failure').item.json.patient_id, channel: 'in_app', template: 'upload_failed', params: { reason: 'Processing failed, please re-upload' } }) }}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "936da0cf-44ca-53ee-8d17-14d9930b2e5a",
+      "name": "Notify patient: failed",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2600,
+        620
+      ],
+      "onError": "continueRegularOutput",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
+    }
+  ],
+  "connections": {
+    "Webhook: document.uploaded": {
+      "main": [
+        [
+          {
+            "node": "Validate event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate event": {
+      "main": [
+        [
+          {
+            "node": "Valid?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Valid?": {
+      "main": [
+        [
+          {
+            "node": "Respond 202 Accepted",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond 400 Rejected",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Respond 202 Accepted": {
+      "main": [
+        [
+          {
+            "node": "Status: compressing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Status: compressing": {
+      "main": [
+        [
+          {
+            "node": "Compress + store",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Prepare failure",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Compress + store": {
+      "main": [
+        [
+          {
+            "node": "Anchor hash on Solana",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Prepare failure",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Anchor hash on Solana": {
+      "main": [
+        [
+          {
+            "node": "Status: extracting",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Status: extracting": {
+      "main": [
+        [
+          {
+            "node": "Gemini extract",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Prepare failure",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini extract": {
+      "main": [
+        [
+          {
+            "node": "Flag abnormal values",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Prepare failure",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Flag abnormal values": {
+      "main": [
+        [
+          {
+            "node": "Build result",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Prepare failure",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build result": {
+      "main": [
+        [
+          {
+            "node": "Save parsed record",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save parsed record": {
+      "main": [
+        [
+          {
+            "node": "Log AI trace",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Prepare failure",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log AI trace": {
+      "main": [
+        [
+          {
+            "node": "Status: completed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Status: completed": {
+      "main": [
+        [
+          {
+            "node": "Notify patient",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare failure": {
+      "main": [
+        [
+          {
+            "node": "Status: failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Status: failed": {
+      "main": [
+        [
+          {
+            "node": "Notify patient: failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "all",
+    "timezone": "Asia/Kolkata"
+  },
+  "pinData": {},
+  "tags": []
+}

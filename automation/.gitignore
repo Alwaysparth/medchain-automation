@@ -1,0 +1,8 @@
+.env
+compressed_out/
+object_store/
+*.jsonl
+extracted.json
+flagged.json
+__pycache__/
+.pytest_cache/

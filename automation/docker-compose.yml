@@ -1,0 +1,74 @@
+# MedChain automation stack (Member 2) — run from the automation/ folder:
+#   docker compose up --build
+#
+#   n8n        http://localhost:5678    workflows
+#   ai-worker  http://localhost:8000/docs   compression, Gemini extraction, flagging, traces
+#   mock-api   http://localhost:8100/docs   MOCK of Member 1's API + Member 3's Solana client
+#
+# When the real API / Solana client exist, set MEDCHAIN_API_URL and SOLANA_CLIENT_URL in .env
+# and remove the mock-api service. Nothing in the workflows changes.
+name: medchain-automation
+
+x-app-image: &app-image
+  build:
+    context: ..
+    dockerfile: automation/Dockerfile
+  image: medchain-automation:local
+  env_file: .env
+  restart: unless-stopped
+
+services:
+  ai-worker:
+    <<: *app-image
+    environment:
+      LOCAL_STORAGE_DIR: /objects
+      TRACE_FILE: /data/traces.jsonl
+    volumes:
+      - objects:/objects
+      - worker_data:/data
+    ports:
+      - "127.0.0.1:8000:8000"   # localhost only, never public
+
+  mock-api:
+    <<: *app-image
+    command: ["uvicorn", "app:app", "--app-dir", "/app/automation/mocks/mock_api", "--host", "0.0.0.0", "--port", "8100"]
+    environment:
+      AI_DIR: /app/automation/ai
+      LOCAL_STORAGE_DIR: /objects
+      MOCK_DB_FILE: /data/mock_db.json
+      N8N_UPLOAD_WEBHOOK_URL: http://n8n:5678/webhook/upload-pipeline
+    volumes:
+      - objects:/objects
+      - mock_data:/data
+    ports:
+      - "127.0.0.1:8100:8100"   # localhost only, never public
+
+  n8n:
+    image: docker.n8n.io/n8nio/n8n:${N8N_VERSION:-latest}
+    restart: unless-stopped
+    depends_on:
+      - ai-worker
+      - mock-api
+    environment:
+      GENERIC_TIMEZONE: Asia/Kolkata
+      TZ: Asia/Kolkata
+      N8N_BLOCK_ENV_ACCESS_IN_NODE: "false"   # workflows read service URLs/tokens from env
+      N8N_SECURE_COOKIE: "false"              # local http; remove when served over https
+      N8N_DIAGNOSTICS_ENABLED: "false"
+      WEBHOOK_URL: ${N8N_PUBLIC_URL:-http://localhost:5678/}
+      MEDCHAIN_API_URL: ${MEDCHAIN_API_URL:-http://mock-api:8100}
+      AI_WORKER_URL: ${AI_WORKER_URL:-http://ai-worker:8000}
+      SOLANA_CLIENT_URL: ${SOLANA_CLIENT_URL:-http://mock-api:8100/solana}
+      INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN:?set INTERNAL_SERVICE_TOKEN in .env}
+      N8N_WEBHOOK_TOKEN: ${N8N_WEBHOOK_TOKEN:?set N8N_WEBHOOK_TOKEN in .env}
+    volumes:
+      - n8n_data:/home/node/.n8n
+      - ./n8n/workflows:/workflows:ro
+    ports:
+      - "127.0.0.1:5678:5678"   # localhost only (public hosting: render.yaml)
+
+volumes:
+  objects:
+  worker_data:
+  mock_data:
+  n8n_data:

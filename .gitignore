@@ -1,0 +1,16 @@
+# Secrets — never commit
+**/.env
+.env.*
+!**/.env.example
+
+# Local outputs / caches
+*.zip
+__pycache__/
+.pytest_cache/
+.venv/
+venv/
+**/compressed_out/
+**/object_store/
+**/extracted.json
+**/flagged.json
+*.jsonl

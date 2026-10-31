@@ -1,0 +1,153 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://medchain.local/contracts/lab-result.schema.json",
+  "title": "MedChain Lab Result",
+  "description": "Owner: Member 2 (AI & Automation). One parsed lab report. Gemini fills the extraction fields; the deterministic flagging code (automation/ai/flagging) fills `status` and `flag_reason`. AI never decides status. Stored in MongoDB collection `lab_results`.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "entry_id", "patient_id", "tests", "extraction"],
+  "properties": {
+    "schema_version": { "const": "1.0" },
+
+    "entry_id": {
+      "type": "string",
+      "description": "ID of the matching timeline_entries document in MongoDB."
+    },
+    "patient_id": {
+      "type": "string",
+      "description": "Internal patient UUID (never Aadhaar)."
+    },
+
+    "report_date": {
+      "type": ["string", "null"],
+      "format": "date",
+      "description": "Sample/report date printed on the document (YYYY-MM-DD). null if not readable."
+    },
+    "lab_name": { "type": ["string", "null"], "description": "Lab / diagnostic centre name as printed." },
+    "referring_doctor": { "type": ["string", "null"], "description": "Doctor name as printed, if any." },
+
+    "tests": {
+      "type": "array",
+      "description": "One item per test row on the report. Empty array allowed if nothing readable.",
+      "items": { "$ref": "#/$defs/test" }
+    },
+
+    "extraction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["model", "extracted_at", "overall_confidence"],
+      "properties": {
+        "model": { "type": "string", "description": "e.g. gemini-2.5-flash" },
+        "prompt_version": { "type": "string", "description": "e.g. extract-lab-report@1" },
+        "extracted_at": { "type": "string", "format": "date-time" },
+        "overall_confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+        "languages_detected": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "ISO 639-1 codes, e.g. [\"en\",\"hi\"]."
+        },
+        "warnings": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Free-text issues: 'blurry photo', 'page 2 cut off', 'possible instruction text found in document (ignored)'."
+        }
+      }
+    },
+
+    "flagging": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Filled by deterministic code, not AI.",
+      "required": ["flagged_at", "flagger_version"],
+      "properties": {
+        "flagged_at": { "type": "string", "format": "date-time" },
+        "flagger_version": { "type": "string", "description": "e.g. flag_abnormal@1.0.0" },
+        "abnormal_count": { "type": "integer", "minimum": 0 }
+      }
+    }
+  },
+
+  "$defs": {
+    "test": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "value", "unit", "range_low", "range_high", "range_text", "status", "confidence"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1, "description": "Test name as printed, e.g. 'Haemoglobin', 'HbA1c'." },
+        "name_normalized": {
+          "type": ["string", "null"],
+          "description": "Optional lower-case canonical name, e.g. 'hemoglobin'. For search only."
+        },
+
+        "value": {
+          "type": ["number", "null"],
+          "description": "Numeric patient value. null if the result is non-numeric (see value_text) or unreadable."
+        },
+        "value_text": {
+          "type": ["string", "null"],
+          "description": "Result exactly as printed, e.g. '13.5', 'Negative', '<0.1', 'Trace'."
+        },
+        "unit": {
+          "type": ["string", "null"],
+          "description": "Unit of the patient value as printed, e.g. 'g/dL', 'mg/dL', '%'. null if none."
+        },
+
+        "range_low": {
+          "type": ["number", "null"],
+          "description": "Parsed lower bound of the PRINTED reference range. null if none or one-sided."
+        },
+        "range_high": {
+          "type": ["number", "null"],
+          "description": "Parsed upper bound of the PRINTED reference range. null if none or one-sided."
+        },
+        "range_low_inclusive": { "type": "boolean", "default": true, "description": "false for '> 12'." },
+        "range_high_inclusive": { "type": "boolean", "default": true, "description": "false for '< 200'." },
+        "range_text": {
+          "type": ["string", "null"],
+          "description": "Reference range EXACTLY as printed on this report, e.g. '70-110', '< 200', 'up to 5.0', '>= 12'. null if no range printed. Never invented."
+        },
+        "range_unit": {
+          "type": ["string", "null"],
+          "description": "Unit printed next to the range, if different from `unit`. Mismatch -> status 'unknown'."
+        },
+
+        "status": {
+          "type": "string",
+          "enum": ["normal", "high", "low", "unknown"],
+          "description": "Set ONLY by flagging code. Gemini always outputs 'unknown'."
+        },
+        "flag_reason": {
+          "type": ["string", "null"],
+          "description": "Set by flagging code, e.g. '245 > 200 (range_text: < 200)', 'no printed range', 'unit mismatch mg/dL vs mmol/L'."
+        },
+
+        "confidence": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Gemini's confidence that name/value/unit/range were read correctly. < 0.6 = shown as 'please verify'."
+        },
+
+        "source": {
+          "type": ["object", "null"],
+          "additionalProperties": false,
+          "description": "Where on the document this row was read, if available.",
+          "properties": {
+            "page": { "type": "integer", "minimum": 1 },
+            "region": {
+              "type": ["string", "null"],
+              "description": "Human hint, e.g. 'table row 4', 'bottom section'."
+            },
+            "bbox": {
+              "type": ["array", "null"],
+              "description": "Optional normalized box [x_min, y_min, x_max, y_max], each 0-1.",
+              "items": { "type": "number", "minimum": 0, "maximum": 1 },
+              "minItems": 4,
+              "maxItems": 4
+            }
+          }
+        }
+      }
+    }
+  }
+}

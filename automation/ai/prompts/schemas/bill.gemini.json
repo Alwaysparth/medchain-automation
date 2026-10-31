@@ -1,0 +1,194 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "vendor_name": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "vendor_type": {
+      "type": "string",
+      "enum": [
+        "pharmacy",
+        "diagnostic_center",
+        "clinic",
+        "hospital",
+        "other"
+      ]
+    },
+    "vendor_gstin": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "vendor_drug_license_no": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "bill_number": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "bill_date": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date"
+    },
+    "prescribing_doctor": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "items": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "description_as_printed": {
+            "type": "string"
+          },
+          "batch_no": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "expiry_as_printed": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "hsn_code": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "quantity": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "quantity_text": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "unit_price": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "amount": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "confidence": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          }
+        },
+        "required": [
+          "description_as_printed",
+          "batch_no",
+          "expiry_as_printed",
+          "hsn_code",
+          "quantity",
+          "quantity_text",
+          "unit_price",
+          "amount",
+          "confidence"
+        ]
+      }
+    },
+    "subtotal": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "discount": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "tax_total": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "total": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "currency": {
+      "type": "string"
+    },
+    "payment_mode": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "languages_detected": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "overall_confidence": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "warnings": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "required": [
+    "vendor_name",
+    "vendor_type",
+    "vendor_gstin",
+    "vendor_drug_license_no",
+    "bill_number",
+    "bill_date",
+    "prescribing_doctor",
+    "items",
+    "subtotal",
+    "discount",
+    "tax_total",
+    "total",
+    "currency",
+    "payment_mode",
+    "languages_detected",
+    "overall_confidence",
+    "warnings"
+  ],
+  "title": "Gemini output: bill"
+}

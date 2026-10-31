@@ -1,0 +1,8 @@
+# Keep Docker builds small and secret-free (build context is the repo root)
+**/.env
+**/node_modules
+**/__pycache__
+**/.pytest_cache
+**/compressed_out
+**/object_store
+.git

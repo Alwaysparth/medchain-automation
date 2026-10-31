@@ -1,0 +1,142 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "report_date": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date"
+    },
+    "lab_name": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "referring_doctor": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "tests": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "name_normalized": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "lower-case English name only if sure"
+          },
+          "value_text": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "result exactly as printed"
+          },
+          "value": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "plain number only if value_text is a plain number"
+          },
+          "unit": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "range_text": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "reference range exactly as printed on THIS report; null if none printed"
+          },
+          "range_unit": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "only if different from unit"
+          },
+          "confidence": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "source": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "page": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "region": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "page",
+              "region"
+            ]
+          }
+        },
+        "required": [
+          "name",
+          "name_normalized",
+          "value_text",
+          "value",
+          "unit",
+          "range_text",
+          "range_unit",
+          "confidence",
+          "source"
+        ]
+      }
+    },
+    "languages_detected": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "overall_confidence": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "warnings": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "required": [
+    "report_date",
+    "lab_name",
+    "referring_doctor",
+    "tests",
+    "languages_detected",
+    "overall_confidence",
+    "warnings"
+  ],
+  "title": "Gemini output: lab report (no status — code decides)"
+}
