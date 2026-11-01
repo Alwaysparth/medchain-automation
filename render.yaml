@@ -30,7 +30,7 @@ services:
     name: medchain-n8n
     runtime: image
     image:
-      url: docker.n8n.io/n8nio/n8n:latest
+      url: docker.io/n8nio/n8n:latest      # Docker Hub (Render cannot pull via docker.n8n.io)
     plan: free
     region: singapore
     healthCheckPath: /healthz
